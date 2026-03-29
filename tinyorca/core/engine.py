@@ -20,8 +20,8 @@ class FlatBatch:
 
     hidden_states: torch.Tensor  # [sum_S, Hidden]
     spans: list[RequestSpan]
-    position_ids: dict[str, torch.Tensor] = field(default_factory=dict)
-    cache_position: dict[str, torch.Tensor] = field(default_factory=dict)
+    position_ids: list[torch.Tensor] = field(default_factory=list)
+    cache_position: list[torch.Tensor] = field(default_factory=list)
 
 
 class OrcaEngine:
@@ -188,8 +188,8 @@ class OrcaEngine:
     def build_flat_batch(self, requests: list[Request]) -> FlatBatch:
         input_token_ids: list[int] = []
         spans: list[RequestSpan] = []
-        position_ids: dict[str, torch.Tensor] = {}
-        cache_position: dict[str, torch.Tensor] = {}
+        position_ids: list[torch.Tensor] = []
+        cache_position: list[torch.Tensor] = []
 
         flat_start = 0
         for request in requests:
@@ -236,13 +236,14 @@ class OrcaEngine:
                 )
             )
             # absolute token positions for this step, used for RoPE.
-            position_ids[request.request_id] = torch.arange(
+            request_position_ids = torch.arange(
                 processed_tokens,
                 total_visible_tokens,
                 device=self.device,
                 dtype=torch.long,
             )
-            cache_position[request.request_id] = position_ids[request.request_id]
+            position_ids.append(request_position_ids)
+            cache_position.append(request_position_ids)
 
             input_token_ids.extend(step_token_ids)
             flat_start += step_len
