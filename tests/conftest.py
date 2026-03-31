@@ -21,7 +21,7 @@ def _build_test_model(vocab_size: int, dtype: torch.dtype | None) -> Qwen3ForCau
             num_hidden_layers=2,
             num_attention_heads=8,
             num_key_value_heads=8,
-            head_dim=8,
+            head_dim=16,
         )
     ).eval()
     if dtype is not None:
