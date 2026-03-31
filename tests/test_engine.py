@@ -89,3 +89,42 @@ def test_run_iter_matches_hf_on_mixed_batch(engine_factory) -> None:
     assert token_ids_by_request[waiting_request.request_id] == int(
         torch.argmax(hf_prefill_logits[0], dim=-1).item()
     )
+
+
+def test_selective_model_matches_hf_next_tokens_on_mixed_batch(engine_factory) -> None:
+    engine = engine_factory()
+    running_request = _build_request("r1", (10, 11, 12))
+    waiting_request = _build_request("r2", (20, 21))
+
+    engine.run_iter([running_request])
+    flat_batch = engine.build_flat_batch([running_request, waiting_request])
+
+    with torch.inference_mode():
+        output_hidden_states = engine.model(
+            hidden_states=flat_batch.hidden_states,
+            spans=flat_batch.spans,
+            position_ids=flat_batch.position_ids,
+            cache_position=flat_batch.cache_position,
+            request_caches=engine.request_caches,
+        )
+
+    last_hidden_states = torch.stack(
+        [output_hidden_states[span.end - 1] for span in flat_batch.spans]
+    )
+    selective_next_token_ids = torch.argmax(
+        engine.hf_model.lm_head(last_hidden_states),
+        dim=-1,
+    ).tolist()
+
+    _first_token_id, hf_decode_logits = _hf_decode_last_logits(
+        engine.hf_model, running_request.prompt_ids
+    )
+    hf_prefill_logits = _hf_prefill_last_logits(
+        engine.hf_model, waiting_request.prompt_ids
+    )
+    expected_next_token_ids = [
+        int(torch.argmax(hf_decode_logits[0], dim=-1).item()),
+        int(torch.argmax(hf_prefill_logits[0], dim=-1).item()),
+    ]
+
+    assert selective_next_token_ids == expected_next_token_ids
