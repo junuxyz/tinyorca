@@ -4,7 +4,7 @@
   <img src="assets/tinyorca-logo.png" alt="tinyorca logo" width="280">
 </p>
 
-**tinyorca** is a minimal implementation of an [ORCA](https://www.usenix.org/system/files/osdi22-yu.pdf)-style LLM serving engine.
+`tinyorca` is a minimal implementation of an [ORCA](https://www.usenix.org/system/files/osdi22-yu.pdf)-style LLM serving engine.
 
 It focuses on iteration-level scheduling and selective batching for mixed prefill and decode workloads.
 
@@ -16,23 +16,24 @@ Both demos below use the same setup:
 - 5 concurrent requests
 - 2 requests(req-0, req-2) intentionally much shorter than the others
 
-<table width="100%">
-  <tr>
-    <th width="50%">Baseline Engine</th>
-    <th width="50%">tinyorca</th>
-  </tr>
-  <tr>
-    <td width="50%"><img src="assets/baseline_engine_demo.gif" alt="baseline engine demo" width="100%" height="280"></td>
-    <td width="50%"><img src="assets/tinyorca_demo.gif" alt="tinyorca demo" width="100%" height="280"></td>
-  </tr>
-</table>
+### Baseline Engine
+
+<p align="center">
+  <img src="assets/baseline_engine_demo.gif" alt="baseline engine demo" width="780">
+</p>
 
 In the baseline, the first admitted batch is effectively pinned until its slowest request completes.
 Even if one request finishes early, that vacant spot is not turned into useful work right away, so later requests keep waiting.
 
+### tinyorca
+
+<p align="center">
+  <img src="assets/tinyorca_demo.gif" alt="tinyorca demo" width="780">
+</p>
+
 In `tinyorca`, scheduling happens at iteration granularity instead of request granularity.
-When a short request(e.g. `"Hi"`) finishes, its slot can be reused on the next iteration, so waiting requests can join earlier without waiting for the longest request in the current batch to finish.
-This helps each step to keep the max batch size, leading to better throughput.
+
+When a short request(e.g. `"Hi"`) finishes, its slot can be reused on the next iteration, so waiting requests can join earlier without waiting for the longest request in the current batch to finish. This helps each step to keep the max batch size, leading to better throughput.
 
 ## Deep dive
 For a deeper walkthrough of the paper and this implementation, see: **[Understanding ORCA with tinyorca](https://github.com/junuxyz/mlsys-notes/blob/main/notes/tinyorca.md)**
