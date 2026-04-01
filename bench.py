@@ -17,20 +17,35 @@ DTYPE_BY_NAME = {
     "float16": torch.float16,
     "float32": torch.float32,
 }
-WORKLOAD = ("128x128", 128, 128)
+WORKLOADS = {
+    "equal_size": {
+        "label": "equal_size",
+        "description": "16 requests of (128, 128)",
+    },
+    "short_long_mix": {
+        "label": "short_long_mix",
+        "description": "16 interleaved requests of short=(32, 32), long=(512, 128)",
+    },
+}
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Benchmark tinyorca on one fixed 128x128 workload."
+        description="Benchmark tinyorca on one or more synthetic workloads."
     )
     parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--device", default=None)
     parser.add_argument("--dtype", choices=tuple(DTYPE_BY_NAME), default=None)
-    parser.add_argument("--num-requests", type=int, default=8)
+    parser.add_argument("--num-requests", type=int, default=16)
     parser.add_argument("--warmup-requests", type=int, default=2)
-    parser.add_argument("--max-batch-size", type=int, default=4)
+    parser.add_argument("--max-batch-size", type=int, default=2)
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument(
+        "--workload",
+        choices=("all", *WORKLOADS),
+        default="all",
+        help="Benchmark one named workload or run all workloads.",
+    )
     args = parser.parse_args()
     if args.num_requests < 1:
         raise ValueError("--num-requests must be >= 1")
@@ -98,6 +113,18 @@ def synthetic_prompt(tokenizer, prompt_tokens, seed):
             if len(ids) == prompt_tokens:
                 return text
     raise ValueError(f"Failed to build a prompt with exactly {prompt_tokens} tokens")
+
+
+def workload_token_pairs(workload_name, total_requests):
+    if workload_name == "equal_size":
+        return [(128, 128)] * total_requests
+
+    if workload_name == "short_long_mix":
+        short = (32, 32)
+        long = (512, 128)
+        return [short if index % 2 == 0 else long for index in range(total_requests)]
+
+    raise ValueError(f"Unknown workload: {workload_name}")
 
 
 def percentile(values, q):
@@ -171,25 +198,25 @@ def run_case(
     dtype_name,
     dtype,
     workload_name,
-    prompt_tokens,
-    output_tokens,
 ):
     total = args.num_requests + args.warmup_requests
+    token_pairs = workload_token_pairs(workload_name, total)
     samples = [
         (
             synthetic_prompt(tokenizer, prompt_tokens, args.seed + index),
             SamplingConfig(max_new_tokens=output_tokens),
         )
-        for index in range(total)
+        for index, (prompt_tokens, output_tokens) in enumerate(token_pairs)
     ]
     warmup = samples[: args.warmup_requests]
     measured = samples[args.warmup_requests :]
+    max_new_tokens = max(sampling.max_new_tokens for _, sampling in samples)
 
     serve = OrcaServe(
         OrcaConfig(
             model=args.model,
             max_batch_size=args.max_batch_size,
-            sampling=SamplingConfig(max_new_tokens=output_tokens),
+            sampling=SamplingConfig(max_new_tokens=max_new_tokens),
         ),
         device=device,
         dtype=dtype,
@@ -216,7 +243,10 @@ def run_case(
 
     print(args.model)
     print(f"{device} / {dtype_name}")
-    print(f"workload: {workload_name} ({prompt_tokens}, {output_tokens})")
+    print(
+        f"workload: {WORKLOADS[workload_name]['label']} "
+        f"({WORKLOADS[workload_name]['description']})"
+    )
     print()
     print_table(
         ["field", "value"],
@@ -251,17 +281,22 @@ def main():
     dtype_name = args.dtype or ("bfloat16" if device == "cuda" else "float32")
     dtype = DTYPE_BY_NAME[dtype_name]
     tokenizer = AutoTokenizer.from_pretrained(args.model)
-    workload_name, prompt_tokens, output_tokens = WORKLOAD
-    run_case(
-        args,
-        tokenizer,
-        device,
-        dtype_name,
-        dtype,
-        workload_name,
-        prompt_tokens,
-        output_tokens,
+    workload_names = (
+        list(WORKLOADS) if args.workload == "all" else [args.workload]
     )
+    for index, workload_name in enumerate(workload_names):
+        if index:
+            print()
+            print("=" * 80)
+            print()
+        run_case(
+            args,
+            tokenizer,
+            device,
+            dtype_name,
+            dtype,
+            workload_name,
+        )
 
 
 if __name__ == "__main__":

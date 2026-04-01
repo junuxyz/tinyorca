@@ -4,7 +4,7 @@
   <img src="assets/tinyorca-logo.png" alt="tinyorca logo" width="280">
 </p>
 
-**tinyorca** is a minimal implementation of an [ORCA](https://www.usenix.org/system/files/osdi22-yu.pdf)-style LLM serving engine.
+**tinyorca** is a minimal implementation of an [Orca](https://www.usenix.org/system/files/osdi22-yu.pdf)-style LLM serving engine.
 
 It focuses on iteration-level scheduling and selective batching for mixed prefill and decode workloads.
 
@@ -36,7 +36,7 @@ In tinyorca, scheduling happens at iteration granularity instead of request gran
 When a short request(e.g. `"Hi"`) finishes, its slot can be reused on the next iteration, so waiting requests can join earlier without waiting for the longest request in the current batch to finish. This helps each step to keep the max batch size, leading to better throughput.
 
 ## Deep dive
-For a deeper walkthrough of the paper and this implementation, see: **[Understanding ORCA with tinyorca](https://github.com/junuxyz/mlsys-notes/blob/main/notes/tinyorca.md)**
+For a deeper walkthrough of the paper and this implementation, see: **[Understanding Orca through tinyorca](https://github.com/junuxyz/mlsys-notes/blob/main/notes/tinyorca.md)**
 
 
 ## Run
@@ -68,4 +68,15 @@ for event in serve.generate(["Hello", "Hi."]):
 
 ```bash
 uv run python -m bench
+```
+
+By default, the benchmark runs two synthetic workloads:
+
+- `equal_size`: 8 requests of `(128, 128)`
+- `short_long_mix`: interleaved short `(32, 32)` and long `(512, 128)` requests
+
+To run just one workload:
+
+```bash
+uv run python -m bench --workload short_long_mix
 ```

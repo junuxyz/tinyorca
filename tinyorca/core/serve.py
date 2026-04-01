@@ -45,7 +45,7 @@ class Endpoint:
 
 
 class OrcaServe:
-    """Minimal ORCA serving stack with a streaming generate API."""
+    """Minimal Orca serving stack with a streaming generate API."""
 
     def __init__(
         self,

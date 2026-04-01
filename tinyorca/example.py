@@ -92,7 +92,7 @@ def main() -> None:
         serve,
         [
             "Hi",  # (short request)
-            "Explain what ORCA is.",
+            "Explain what Orca is.",
             "Hi",  # (short request)
             "Give a simple pasta idea.",
             "Explain me about quantum physics.",

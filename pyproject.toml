@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "tinyorca"
 version = "0.1.0"
-description = "Minimal, readable ORCA implementation in PyTorch."
+description = "Minimal, readable Orca implementation in PyTorch."
 readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"

@@ -18,7 +18,7 @@ class RequestPool:
         self._requests.append(request)
 
     def arrival_ordered_requests(self) -> list[Request]:
-        # ORCA's iteration-level FCFS policy preserves request arrival order
+        # Orca's iteration-level FCFS policy preserves request arrival order
         # across iterations instead of preferring decode requests globally.
         return list(self._requests)
 
@@ -31,7 +31,7 @@ class RequestPool:
 
 class OrcaScheduler:
     """
-    Implementation of Algorithm 1 in the ORCA paper.
+    Implementation of Algorithm 1 in the Orca paper.
     Owns request selection and slot-based admission control.
     """
 
